@@ -1,5 +1,11 @@
 import { DishManager } from '@/components/DishManager';
+import { HouseholdGuard } from '@/components/HouseholdGuard';
 
 export default function DishesPage() {
-    return <DishManager />;
+    return (
+        <HouseholdGuard>
+            <DishManager />
+        </HouseholdGuard>
+    );
 }
+
