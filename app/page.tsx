@@ -18,11 +18,16 @@ interface HouseholdInfo {
 
 export default function HomePage() {
   const { user } = useAuth();
-  const { household: currentHousehold, refreshHousehold, setActiveHousehold, isHouseholdSelected } = useHousehold();
+  const { household: currentHousehold, refreshHousehold, setActiveHousehold, isHouseholdSelected, clearActiveHousehold } = useHousehold();
   const [households, setHouseholds] = useState<HouseholdInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
   const router = useRouter();
+
+  // Clear household selection when landing on Home page
+  useEffect(() => {
+    clearActiveHousehold();
+  }, []);
 
   useEffect(() => {
     const fetchHouseholds = async () => {

@@ -29,18 +29,41 @@ const HouseholdContext = createContext<HouseholdContextType>({
 });
 
 const ACTIVE_HOUSEHOLD_KEY = 'active_household_id';
+const SELECTION_TIMESTAMP_KEY = 'household_selection_timestamp';
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+// Check if the stored selection is still valid (within timeout)
+const isSelectionValid = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const timestamp = localStorage.getItem(SELECTION_TIMESTAMP_KEY);
+    if (!timestamp) return false;
+    const elapsed = Date.now() - parseInt(timestamp, 10);
+    return elapsed < SESSION_TIMEOUT_MS;
+};
+
+// Clear session data from localStorage
+const clearSessionData = () => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(SELECTION_TIMESTAMP_KEY);
+};
 
 export function HouseholdProvider({ children }: { children: ReactNode }) {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [household, setHousehold] = useState<Household | null>(null);
     const [loading, setLoading] = useState(true);
     const [isHouseholdSelected, setIsHouseholdSelected] = useState(false);
 
     const fetchHousehold = async (preferredId?: string, markAsSelected: boolean = false) => {
+        // Wait for auth to finish loading before making decisions
+        if (authLoading) {
+            return;
+        }
+
         if (!user) {
             setHousehold(null);
             setLoading(false);
             setIsHouseholdSelected(false);
+            clearSessionData();
             return;
         }
 
@@ -56,6 +79,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             setHousehold(null);
             setLoading(false);
             setIsHouseholdSelected(false);
+            clearSessionData();
             return;
         }
 
@@ -76,9 +100,20 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdData.id);
         }
 
-        // Only mark as selected if explicitly requested (user action)
+        // Check if we should auto-restore selection from a valid session
+        // or if this is an explicit user action
         if (markAsSelected) {
             setIsHouseholdSelected(true);
+            localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
+        } else if (isSelectionValid()) {
+            // Auto-restore: session is still valid from previous selection
+            setIsHouseholdSelected(true);
+            // Refresh the timestamp to extend the session
+            localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
+        } else {
+            // Session expired or never existed
+            setIsHouseholdSelected(false);
+            clearSessionData();
         }
 
         setLoading(false);
@@ -86,16 +121,21 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
     const setActiveHousehold = async (householdId: string) => {
         localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
+        localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
         await fetchHousehold(householdId, true); // Mark as selected
     };
 
     const clearActiveHousehold = () => {
         setIsHouseholdSelected(false);
+        clearSessionData();
     };
 
     useEffect(() => {
-        fetchHousehold(); // Initial load does NOT mark as selected
-    }, [user]);
+        // Only fetch when auth loading is complete
+        if (!authLoading) {
+            fetchHousehold();
+        }
+    }, [user, authLoading]);
 
     return (
         <HouseholdContext.Provider value={{
@@ -112,4 +152,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 }
 
 export const useHousehold = () => useContext(HouseholdContext);
+
+
 
