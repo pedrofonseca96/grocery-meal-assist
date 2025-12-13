@@ -13,15 +13,19 @@ interface Household {
 interface HouseholdContextType {
     household: Household | null;
     loading: boolean;
+    isHouseholdSelected: boolean;
     refreshHousehold: () => Promise<void>;
     setActiveHousehold: (householdId: string) => Promise<void>;
+    clearActiveHousehold: () => void;
 }
 
 const HouseholdContext = createContext<HouseholdContextType>({
     household: null,
     loading: true,
+    isHouseholdSelected: false,
     refreshHousehold: async () => { },
     setActiveHousehold: async () => { },
+    clearActiveHousehold: () => { },
 });
 
 const ACTIVE_HOUSEHOLD_KEY = 'active_household_id';
@@ -30,11 +34,13 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const [household, setHousehold] = useState<Household | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isHouseholdSelected, setIsHouseholdSelected] = useState(false);
 
-    const fetchHousehold = async (preferredId?: string) => {
+    const fetchHousehold = async (preferredId?: string, markAsSelected: boolean = false) => {
         if (!user) {
             setHousehold(null);
             setLoading(false);
+            setIsHouseholdSelected(false);
             return;
         }
 
@@ -49,6 +55,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
         if (!memberships || memberships.length === 0) {
             setHousehold(null);
             setLoading(false);
+            setIsHouseholdSelected(false);
             return;
         }
 
@@ -68,24 +75,36 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             setHousehold(householdData);
             localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdData.id);
         }
+
+        // Only mark as selected if explicitly requested (user action)
+        if (markAsSelected) {
+            setIsHouseholdSelected(true);
+        }
+
         setLoading(false);
     };
 
     const setActiveHousehold = async (householdId: string) => {
         localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
-        await fetchHousehold(householdId);
+        await fetchHousehold(householdId, true); // Mark as selected
+    };
+
+    const clearActiveHousehold = () => {
+        setIsHouseholdSelected(false);
     };
 
     useEffect(() => {
-        fetchHousehold();
+        fetchHousehold(); // Initial load does NOT mark as selected
     }, [user]);
 
     return (
         <HouseholdContext.Provider value={{
             household,
             loading,
+            isHouseholdSelected,
             refreshHousehold: fetchHousehold,
-            setActiveHousehold
+            setActiveHousehold,
+            clearActiveHousehold
         }}>
             {children}
         </HouseholdContext.Provider>
@@ -93,3 +112,4 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 }
 
 export const useHousehold = () => useContext(HouseholdContext);
+

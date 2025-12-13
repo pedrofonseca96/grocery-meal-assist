@@ -1,5 +1,11 @@
 import { Planner } from '@/components/Planner';
+import { HouseholdGuard } from '@/components/HouseholdGuard';
 
 export default function PlannerPage() {
-    return <Planner />;
+    return (
+        <HouseholdGuard>
+            <Planner />
+        </HouseholdGuard>
+    );
 }
+

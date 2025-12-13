@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useHousehold } from '@/contexts/HouseholdContext';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Home, Users, Copy, Check, Plus, Loader2, Trash2 } from 'lucide-react';
+import { Home, Users, Copy, Check, Plus, Loader2, Trash2, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface HouseholdInfo {
@@ -18,7 +18,7 @@ interface HouseholdInfo {
 
 export default function HomePage() {
   const { user } = useAuth();
-  const { household: currentHousehold, refreshHousehold, setActiveHousehold } = useHousehold();
+  const { household: currentHousehold, refreshHousehold, setActiveHousehold, isHouseholdSelected } = useHousehold();
   const [households, setHouseholds] = useState<HouseholdInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
@@ -65,6 +65,11 @@ export default function HomePage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const handleEnterHousehold = async (householdId: string) => {
+    await setActiveHousehold(householdId);
+    router.push('/planner');
+  };
+
   const handleDeleteHousehold = async (householdId: string, householdName: string) => {
     if (!confirm(`Delete "${householdName}"? This will remove all data for everyone. This cannot be undone.`)) {
       return;
@@ -105,7 +110,10 @@ export default function HomePage() {
           <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
             <Home className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold">My Households</h1>
+          <div>
+            <h1 className="text-2xl font-bold">My Households</h1>
+            <p className="text-sm text-gray-500">Select a household to get started</p>
+          </div>
         </div>
         <Button
           size="sm"
@@ -116,80 +124,72 @@ export default function HomePage() {
         </Button>
       </div>
 
-      {/* Current Household Highlight */}
-      {currentHousehold && (
-        <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs text-orange-600 font-medium">Active</span>
-                <h3 className="text-lg font-semibold">{currentHousehold.name}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="text-sm font-mono bg-white px-3 py-1 rounded-lg border">
-                  {currentHousehold.invite_code}
-                </code>
-                <button
-                  onClick={() => copyCode(currentHousehold.invite_code)}
-                  className="p-2 hover:bg-white rounded-lg"
-                >
-                  {copied === currentHousehold.invite_code ?
-                    <Check className="w-4 h-4 text-green-600" /> :
-                    <Copy className="w-4 h-4 text-gray-500" />
-                  }
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* All Households */}
-      <div className="space-y-2">
-        {households.filter(h => h.id !== currentHousehold?.id).map((h) => (
-          <Card
-            key={h.id}
-            className="hover:shadow-md transition-shadow cursor-pointer hover:border-orange-300"
-            onClick={() => setActiveHousehold(h.id)}
-          >
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-gray-400" />
-                <div>
-                  <h3 className="font-medium">{h.name}</h3>
-                  <span className="text-xs text-gray-500 capitalize">{h.role}</span>
+      <div className="space-y-3">
+        {households.map((h) => {
+          const isActive = h.id === currentHousehold?.id && isHouseholdSelected;
+
+          return (
+            <Card
+              key={h.id}
+              className={`transition-all ${isActive ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-red-50' : 'hover:shadow-md hover:border-orange-200'}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-orange-100' : 'bg-gray-100'}`}>
+                      <Users className={`w-5 h-5 ${isActive ? 'text-orange-600' : 'text-gray-400'}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{h.name}</h3>
+                      <span className="text-xs text-gray-500 capitalize">{h.role}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Invite code copy */}
+                    <div className="hidden sm:flex items-center gap-1 mr-2">
+                      <code className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+                        {h.invite_code}
+                      </code>
+                      <button
+                        onClick={() => copyCode(h.invite_code)}
+                        className="p-1 hover:bg-gray-100 rounded"
+                        title="Copy invite code"
+                      >
+                        {copied === h.invite_code ?
+                          <Check className="w-4 h-4 text-green-600" /> :
+                          <Copy className="w-4 h-4 text-gray-400" />
+                        }
+                      </button>
+                    </div>
+
+                    {/* Delete button for owners */}
+                    {h.role === 'owner' && (
+                      <button
+                        onClick={() => handleDeleteHousehold(h.id, h.name)}
+                        className="p-2 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
+                        title="Delete household"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Enter button */}
+                    <Button
+                      size="sm"
+                      onClick={() => handleEnterHousehold(h.id)}
+                      className="gap-1"
+                    >
+                      Enter
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-blue-500">Tap to switch</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    copyCode(h.invite_code);
-                  }}
-                  className="p-1.5 hover:bg-gray-100 rounded"
-                  title="Copy invite code"
-                >
-                  {copied === h.invite_code ?
-                    <Check className="w-4 h-4 text-green-600" /> :
-                    <Copy className="w-4 h-4 text-gray-400" />
-                  }
-                </button>
-                {h.role === 'owner' && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteHousehold(h.id, h.name);
-                    }}
-                    className="p-1.5 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
 
         {households.length === 0 && (
           <div className="text-center py-12">
@@ -204,3 +204,4 @@ export default function HomePage() {
     </div>
   );
 }
+
