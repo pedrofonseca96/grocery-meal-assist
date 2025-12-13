@@ -7,18 +7,42 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ChefHat, RotateCw, Trash2, CalendarDays, ChevronLeft, ChevronRight, Eye, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dish } from '@/types';
+import { Dish, UserPreferences } from '@/types';
 import { suggestMealAction } from '@/app/actions';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Toast } from '@/components/ui/Toast';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Planner() {
     const { schedule, dishes, setMeal, clearMeal, addToGroceryList, removeGroceryItem, addDish, inventory, loading } = useCloudStore();
+    const { user } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewDish, setViewDish] = useState<Dish | null>(null);
     const [toast, setToast] = useState({ isVisible: false, message: "", description: "" });
     const [recentAdditions, setRecentAdditions] = useState<{ slotId: string; timestamp: number; items: string[] }[]>([]);
+
+    // User preferences for AI suggestions
+    const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+
+    // Fetch user preferences on mount
+    useEffect(() => {
+        const fetchPreferences = async () => {
+            if (!user) return;
+            const supabase = createClient();
+            const { data } = await supabase
+                .from('user_preferences')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (data) {
+                setUserPreferences(data);
+            }
+        };
+        fetchPreferences();
+    }, [user]);
 
     const changeWeek = (days: number) => {
         setCurrentDate(prev => addDays(prev, days));
@@ -67,24 +91,17 @@ export function Planner() {
         setLoadingSlot(slotId);
 
         const inventoryNames = inventory.map(i => i.name);
-        // Hardcoded preferences for now, or user can set in settings later
-        const preferences = ["Portuguese", "Thai", "Italian"];
 
-        const date = new Date(dateStr);
-        // Fix timezone offset issue if necessary, but for day name simply:
-        // We need to be careful with 'new Date(string)' as it might be UTC. 
-        // Better to use the same logic as the render loop or just simple formatting.
-        const dayName = format(date, 'EEEE');
-        // Actually, let's just use the passed dateStr which is YYYY-MM-DD. 
-        // new Date('2024-12-01') is UTC, so format might give previous day if timezone is behind.
-        // Safer to construct it with local time or split.
-        // Given we are client side, new Date(dateStr) often resolves to UTC midnight.
-        // Let's rely on the date object that generated the string if possible, or just parse safely.
-        // Actually, create a helper or just append 'T12:00:00' to ensure noon to avoid timezone shift on just day.
+        // Use user preferences if available, otherwise default values
+        const cuisines = userPreferences?.preferred_cuisines?.length
+            ? userPreferences.preferred_cuisines
+            : ["Portuguese", "Thai", "Italian"];
+        const dietaryRestrictions = userPreferences?.dietary_restrictions || [];
+
         const safeDate = new Date(dateStr + 'T12:00:00');
         const dayNameStr = format(safeDate, 'EEEE');
 
-        const result = await suggestMealAction(inventoryNames, preferences, type, dayNameStr);
+        const result = await suggestMealAction(inventoryNames, cuisines, type, dayNameStr, dietaryRestrictions);
 
         if (result.error) {
             console.error(result.error);

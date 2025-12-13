@@ -44,3 +44,45 @@ export interface MealSlot {
     isLeftover?: boolean; // If true, implies it's from previous dinner
     customNote?: string;
 }
+
+// User preferences for profile and meal planning
+export interface UserPreferences {
+    id: string;
+    user_id: string;
+    display_name: string | null;
+    dietary_restrictions: string[];
+    preferred_cuisines: string[];
+    created_at?: string;
+    updated_at?: string;
+}
+
+// Available dietary restriction options
+export const DIETARY_OPTIONS = [
+    'Vegetarian',
+    'Vegan',
+    'Gluten-Free',
+    'Dairy-Free',
+    'Nut-Free',
+    'Low-Carb',
+    'Keto',
+    'Halal',
+    'Kosher'
+] as const;
+
+// Available cuisine options
+export const CUISINE_OPTIONS = [
+    'Portuguese',
+    'Italian',
+    'Thai',
+    'Mexican',
+    'Indian',
+    'Chinese',
+    'Japanese',
+    'American',
+    'French',
+    'Greek',
+    'Mediterranean',
+    'Korean',
+    'Vietnamese'
+] as const;
+
