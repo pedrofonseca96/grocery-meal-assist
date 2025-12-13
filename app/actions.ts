@@ -2,7 +2,13 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export async function suggestMealAction(inventoryItems: string[], cuisines: string[], mealType: string, dayName: string) {
+export async function suggestMealAction(
+  inventoryItems: string[],
+  cuisines: string[],
+  mealType: string,
+  dayName: string,
+  dietaryRestrictions: string[] = []
+) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return { error: "API Key not configured. Please set GEMINI_API_KEY in .env.local" };
@@ -17,6 +23,10 @@ export async function suggestMealAction(inventoryItems: string[], cuisines: stri
    */
   const modelsToTry = ["gemini-2.5-flash-lite"];
 
+  const dietaryNote = dietaryRestrictions.length > 0
+    ? `IMPORTANT DIETARY RESTRICTIONS (MUST follow): ${dietaryRestrictions.join(", ")}. The suggested dish MUST comply with ALL these restrictions.`
+    : '';
+
   const prompt = `
     You are a culinary expert assisting a family with meal planning.
     Context:
@@ -24,6 +34,7 @@ export async function suggestMealAction(inventoryItems: string[], cuisines: stri
     - Preferred Cuisines: ${cuisines.join(", ")}.
     - Meal Type: ${mealType}
     - Day of Week: ${dayName}
+    ${dietaryNote}
 
     RULES & PREFERENCES:
     1. FAMILY BIAS: This family is Portuguese and prefers Portuguese dishes (approx. 70% of the time).
