@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, ChefHat, Loader2, BookmarkPlus, Check } from 'lucide-react';
+import { X, Send, ChefHat, Loader2, BookmarkPlus, Check } from 'lucide-react';
 import { askRecipeAction } from '@/app/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCloudStore } from '@/store/useCloudStore';
@@ -18,7 +18,7 @@ interface Message {
 export function RecipeChatbot() {
     const { user } = useAuth();
     const { isHouseholdSelected } = useHousehold();
-    const { addDish, dishes } = useCloudStore();
+    const { addDish } = useCloudStore();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: "Hi! I'm your cooking assistant. Ask me how to cook any dish, and I'll help you with step-by-step instructions! 👨‍🍳" }
@@ -97,7 +97,7 @@ export function RecipeChatbot() {
             } else if (result.error) {
                 setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${result.error}` }]);
             }
-        } catch (error) {
+        } catch {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
         } finally {
             setIsLoading(false);
@@ -209,7 +209,7 @@ export function RecipeChatbot() {
                                                     onClick={() => handleSaveRecipe(idx, msg.recipeName!, msg.content)}
                                                     className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 bg-orange-50 px-2 py-1 rounded-full"
                                                 >
-                                                    <BookmarkPlus className="w-3 h-3" /> Save "{msg.recipeName}" to Recipes
+                                                    <BookmarkPlus className="w-3 h-3" /> Save &ldquo;{msg.recipeName}&rdquo; to Recipes
                                                 </button>
                                             )}
                                         </div>

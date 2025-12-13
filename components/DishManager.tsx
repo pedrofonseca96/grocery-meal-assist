@@ -9,7 +9,7 @@ import { Cuisine, Dish } from '@/types';
 import { Modal } from './ui/Modal';
 
 export function DishManager() {
-    const { dishes, addDish, deleteDish, loading } = useCloudStore();
+    const { dishes, addDish, deleteDish } = useCloudStore();
     const [isAdding, setIsAdding] = useState(false);
     const [newDishName, setNewDishName] = useState("");
     const [cuisine, setCuisine] = useState<Cuisine>("Portuguese");

@@ -27,6 +27,7 @@ export default function HomePage() {
   // Clear household selection when landing on Home page
   useEffect(() => {
     clearActiveHousehold();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: run only on mount
   }, []);
 
   useEffect(() => {

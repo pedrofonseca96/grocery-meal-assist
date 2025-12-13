@@ -45,6 +45,7 @@ export function useCloudStore(): CloudStoreState & CloudStoreActions {
     const supabase = createClient();
 
     // Fetch all data for household
+     
     const fetchData = useCallback(async () => {
         if (!household?.id) {
             setLoading(false);
@@ -119,6 +120,7 @@ export function useCloudStore(): CloudStoreState & CloudStoreActions {
         }
 
         setLoading(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- supabase client is stable
     }, [household?.id]);
 
     useEffect(() => {

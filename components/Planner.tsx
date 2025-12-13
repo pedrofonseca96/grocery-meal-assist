@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { addDays, format, startOfWeek, isSameDay } from 'date-fns';
+import { addDays, format, startOfWeek } from 'date-fns';
 import { useCloudStore } from '@/store/useCloudStore';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { ChefHat, RotateCw, Trash2, CalendarDays, ChevronLeft, ChevronRight, Eye, Info } from 'lucide-react';
+import { RotateCw, Trash2, CalendarDays, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dish, UserPreferences } from '@/types';
 import { suggestMealAction } from '@/app/actions';
@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function Planner() {
-    const { schedule, dishes, setMeal, clearMeal, addToGroceryList, removeGroceryItem, addDish, inventory, loading } = useCloudStore();
+    const { schedule, dishes, setMeal, clearMeal, addToGroceryList, removeGroceryItem, addDish, inventory } = useCloudStore();
     const { user } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewDish, setViewDish] = useState<Dish | null>(null);

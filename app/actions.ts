@@ -1,6 +1,11 @@
 'use server';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logError, logWarning } from '@/lib/errorLogger';
+import { suggestMealSchema, askRecipeSchema, validateInput } from '@/lib/validations';
+import { rateLimit, RATE_LIMITS, getRateLimitKey } from '@/lib/rateLimit';
+import { createClient } from '@/lib/supabase/server';
+import { withRetry, isRetryableError } from '@/lib/retry';
 
 export async function suggestMealAction(
   inventoryItems: string[],
@@ -9,6 +14,41 @@ export async function suggestMealAction(
   dayName: string,
   dietaryRestrictions: string[] = []
 ) {
+  // Get user for rate limiting
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Apply rate limit
+  const rateLimitResult = rateLimit(
+    'ai-suggest',
+    getRateLimitKey(user?.id),
+    RATE_LIMITS.AI_SUGGEST
+  );
+
+  if (!rateLimitResult.success) {
+    logWarning('Rate limit exceeded for AI suggestions', {
+      userId: user?.id,
+      retryAfter: rateLimitResult.retryAfterSeconds
+    });
+    return {
+      error: `Too many requests. Please try again in ${rateLimitResult.retryAfterSeconds} seconds.`
+    };
+  }
+
+  // Validate inputs
+  const validation = validateInput(suggestMealSchema, {
+    inventoryItems,
+    cuisines,
+    mealType,
+    dayName,
+    dietaryRestrictions,
+  });
+
+  if (!validation.success) {
+    logWarning('Invalid meal suggestion request', { error: validation.error });
+    return { error: `Invalid input: ${validation.error}` };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return { error: "API Key not configured. Please set GEMINI_API_KEY in .env.local" };
@@ -72,25 +112,40 @@ export async function suggestMealAction(
     Do not include markdown code blocks. Just the JSON string.
   `;
 
-  let lastError = null;
-
   for (const modelName of modelsToTry) {
     try {
       console.log(`Attempting to generate with model: ${modelName}`);
       const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+
+      // Use retry logic for resilience against transient failures
+      const text = await withRetry(
+        async () => {
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          return response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+        },
+        {
+          maxRetries: 2,
+          baseDelayMs: 1000,
+          context: `AI model ${modelName}`,
+          retryOn: isRetryableError
+        }
+      );
+
       return { data: JSON.parse(text) };
     } catch (error) {
-      console.error(`Failed with ${modelName}:`, error);
-      lastError = error;
+      logWarning(`AI model ${modelName} failed after retries`, {
+        modelName,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       // Continue to next model
     }
   }
 
   // If we reach here, all models failed
-  console.error("All models failed.");
+  logError('All AI models failed', new Error('Model fallback exhausted'), {
+    modelsAttempted: modelsToTry
+  });
   return { error: "Failed to generate suggestion with any available model. Check server logs." };
 }
 
@@ -98,6 +153,34 @@ export async function suggestMealAction(
  * Chatbot action for asking about recipes and cooking instructions.
  */
 export async function askRecipeAction(question: string, conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []) {
+  // Get user for rate limiting
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Apply rate limit (chatbot allows more requests than meal suggestions)
+  const rateLimitResult = rateLimit(
+    'ai-chat',
+    getRateLimitKey(user?.id),
+    RATE_LIMITS.AI_CHAT
+  );
+
+  if (!rateLimitResult.success) {
+    logWarning('Rate limit exceeded for AI chat', {
+      userId: user?.id,
+      retryAfter: rateLimitResult.retryAfterSeconds
+    });
+    return {
+      error: `Too many messages. Please wait ${rateLimitResult.retryAfterSeconds} seconds.`
+    };
+  }
+
+  // Validate inputs
+  const validation = validateInput(askRecipeSchema, { question, conversationHistory });
+  if (!validation.success) {
+    logWarning('Invalid recipe question', { error: validation.error });
+    return { error: `Invalid input: ${validation.error}` };
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return { error: "API Key not configured. Please set GEMINI_API_KEY in .env.local" };
@@ -164,12 +247,24 @@ export async function askRecipeAction(question: string, conversationHistory: { r
   `;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
+    // Use retry logic for resilience against transient failures
+    const text = await withRetry(
+      async () => {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+      },
+      {
+        maxRetries: 2,
+        baseDelayMs: 1000,
+        context: 'Recipe chatbot',
+        retryOn: isRetryableError
+      }
+    );
+
     return { data: text };
   } catch (error) {
-    console.error("Recipe chat error:", error);
+    logError('Recipe chatbot error after retries', error, { questionLength: question.length });
     return { error: "Failed to get response. Please try again." };
   }
 }

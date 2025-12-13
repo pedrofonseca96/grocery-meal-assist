@@ -22,15 +22,31 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-gray-50 pb-safe`}>
+        {/* Skip to main content link for accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-md focus:shadow-lg focus:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          Skip to main content
+        </a>
+
         <AuthProvider>
           <HouseholdProvider>
-            <main className="w-full max-w-5xl mx-auto min-h-screen bg-white shadow-xl overflow-hidden">
-              <div className="h-full overflow-y-auto p-4 custom-scrollbar">
+            <div
+              className="w-full max-w-5xl mx-auto min-h-screen bg-white shadow-xl overflow-hidden"
+              role="application"
+              aria-label="Grocery & Meal Assistant"
+            >
+              <main
+                id="main-content"
+                className="h-full overflow-y-auto p-4 custom-scrollbar"
+                role="main"
+              >
                 {children}
-              </div>
+              </main>
               <BottomNav />
               <RecipeChatbot />
-            </main>
+            </div>
           </HouseholdProvider>
         </AuthProvider>
       </body>
