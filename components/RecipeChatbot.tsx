@@ -6,6 +6,8 @@ import { askRecipeAction } from '@/app/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCloudStore } from '@/store/useCloudStore';
 import { Dish } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useHousehold } from '@/contexts/HouseholdContext';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -14,6 +16,8 @@ interface Message {
 }
 
 export function RecipeChatbot() {
+    const { user } = useAuth();
+    const { isHouseholdSelected } = useHousehold();
     const { addDish, dishes } = useCloudStore();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
@@ -147,6 +151,11 @@ export function RecipeChatbot() {
             handleSend();
         }
     };
+
+    // Only show chatbot when user is logged in and has selected a household
+    if (!user || !isHouseholdSelected) {
+        return null;
+    }
 
     return (
         <>
