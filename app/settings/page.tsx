@@ -7,9 +7,10 @@ import { useHousehold } from '@/contexts/HouseholdContext';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Settings, Home, Users, LogOut, Copy, Check, Plus, Loader2, Trash2, User, Save, X, Mail, UserMinus, Crown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { UserPreferences, DIETARY_OPTIONS, CUISINE_OPTIONS } from '@/types';
+import { DIETARY_OPTIONS, CUISINE_OPTIONS } from '@/types';
 
 interface HouseholdInfo {
     id: string;
@@ -49,6 +50,10 @@ export default function SettingsPage() {
     const [sendingInvite, setSendingInvite] = useState(false);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [inviteError, setInviteError] = useState<string | null>(null);
+
+    // Delete confirmation state
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -131,7 +136,7 @@ export default function SettingsPage() {
                     user_id: m.user_id,
                     role: m.role,
                     joined_at: m.joined_at,
-                    email: m.user_id === user?.id ? user.email || 'You' : `Member ${memberData.indexOf(m) + 1}`,
+                    email: m.user_id === user?.id ? (user?.email ?? 'You') : `Member ${memberData.indexOf(m) + 1}`,
                     display_name: prefs?.display_name || null
                 });
             }
@@ -209,7 +214,7 @@ export default function SettingsPage() {
             } else {
                 setInviteError(data.error || 'Failed to send invitation');
             }
-        } catch (err) {
+        } catch {
             setInviteError('Failed to send invitation. Please try again.');
         }
 
@@ -270,28 +275,32 @@ export default function SettingsPage() {
         router.push('/login');
     };
 
-    const handleDeleteHousehold = async (householdId: string, householdName: string) => {
-        if (!confirm(`Delete "${householdName}"? This will remove all data (recipes, meals, groceries) for everyone in this household. This cannot be undone.`)) {
-            return;
-        }
+    const confirmDeleteHousehold = async () => {
+        if (!deleteConfirm) return;
 
+        setDeleting(true);
         const supabase = createClient();
         const { error } = await supabase
             .from('households')
             .delete()
-            .eq('id', householdId);
+            .eq('id', deleteConfirm.id);
+
+        setDeleting(false);
 
         if (error) {
             alert('Failed to delete household: ' + error.message);
+            setDeleteConfirm(null);
             return;
         }
 
-        setHouseholds(prev => prev.filter(h => h.id !== householdId));
+        setHouseholds(prev => prev.filter(h => h.id !== deleteConfirm.id));
 
-        if (householdId === currentHousehold?.id) {
+        if (deleteConfirm.id === currentHousehold?.id) {
             refreshHousehold();
             router.push('/onboarding');
         }
+
+        setDeleteConfirm(null);
     };
 
     if (loading) {
@@ -609,7 +618,7 @@ export default function SettingsPage() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleDeleteHousehold(h.id, h.name);
+                                                setDeleteConfirm({ id: h.id, name: h.name });
                                             }}
                                             className="p-1.5 hover:bg-red-50 rounded text-red-400 hover:text-red-600"
                                             title="Delete household"
@@ -641,6 +650,18 @@ export default function SettingsPage() {
                     Sign Out
                 </Button>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                isOpen={!!deleteConfirm}
+                onClose={() => setDeleteConfirm(null)}
+                onConfirm={confirmDeleteHousehold}
+                title="Delete Household?"
+                message={`This will permanently delete "${deleteConfirm?.name}" and remove all data (recipes, meals, groceries) for everyone. This cannot be undone.`}
+                confirmText="Delete Household"
+                confirmVariant="danger"
+                isLoading={deleting}
+            />
         </div>
     );
 }

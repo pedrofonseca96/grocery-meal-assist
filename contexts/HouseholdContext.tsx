@@ -133,8 +133,10 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         // Only fetch when auth loading is complete
         if (!authLoading) {
+             
             fetchHousehold();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchHousehold is stable
     }, [user, authLoading]);
 
     return (

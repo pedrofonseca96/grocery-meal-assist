@@ -1,16 +1,24 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { logError, logWarning } from '@/lib/errorLogger';
+import { inviteRequestSchema, validateInput } from '@/lib/validations';
+import { rateLimit, RATE_LIMITS, getRateLimitKey } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, householdId, householdName, inviterName } = await request.json();
+        const body = await request.json();
 
-        if (!email || !householdId) {
+        // Validate input with Zod schema
+        const validation = validateInput(inviteRequestSchema, body);
+        if (!validation.success) {
+            logWarning('Invalid invite request', { error: validation.error });
             return NextResponse.json(
-                { error: 'Email and householdId are required' },
+                { error: validation.error },
                 { status: 400 }
             );
         }
+
+        const { email, householdId, householdName, inviterName } = validation.data;
 
         const supabase = await createClient();
 
@@ -21,6 +29,24 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
+            );
+        }
+
+        // Apply rate limit after auth (so we rate limit by user, not anonymous)
+        const rateLimitResult = rateLimit(
+            'invite',
+            getRateLimitKey(user.id),
+            RATE_LIMITS.INVITE
+        );
+
+        if (!rateLimitResult.success) {
+            logWarning('Rate limit exceeded for invites', {
+                userId: user.id,
+                retryAfter: rateLimitResult.retryAfterSeconds
+            });
+            return NextResponse.json(
+                { error: `Too many invites. Please try again in ${rateLimitResult.retryAfterSeconds} seconds.` },
+                { status: 429 }
             );
         }
 
@@ -79,7 +105,11 @@ export async function POST(request: NextRequest) {
         });
 
         if (inviteError) {
-            console.error('Invite error:', inviteError);
+            logWarning('Invite email failed, falling back to invite code', {
+                email,
+                householdId,
+                error: inviteError.message
+            });
             return NextResponse.json(
                 {
                     error: 'Could not send invite email',
@@ -96,7 +126,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Invite API error:', error);
+        logError('Invite API error', error, { householdId: 'unknown' });
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

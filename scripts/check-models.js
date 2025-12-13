@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
@@ -17,10 +18,6 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 async function listModels() {
     try {
-        // We can't easily list models with the SDK in a simple way without 'list_models' capability which might be REST only or different in JS SDK versions.
-        // Actually, JS SDK doesn't always expose listModels directly in the core high-level helper if not looked for.
-        // Let's try to just test a few specific ones and report back.
-
         const modelsToCheck = [
             "gemini-2.0-flash-exp",
             "gemini-1.5-flash",
@@ -34,8 +31,7 @@ async function listModels() {
         for (const modelName of modelsToCheck) {
             try {
                 const model = genAI.getGenerativeModel({ model: modelName });
-                // Try a minimal generation to see if it exists/works
-                const result = await model.generateContent("Test");
+                await model.generateContent("Test");
                 console.log(`✅ ${modelName}: AVAILABLE`);
             } catch (e) {
                 if (e.message.includes('404')) {

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logWarning } from '@/lib/errorLogger';
 
 export async function createClient() {
     const cookieStore = await cookies();
@@ -21,7 +22,11 @@ export async function createClient() {
                             cookieStore.set(name, value, options);
                         });
                     } catch {
-                        // Ignore errors in Server Components
+                        // This can fail in Server Components where cookies are read-only
+                        // Log but don't throw - this is expected behavior
+                        logWarning('Could not set cookies in Server Component', {
+                            cookieCount: cookiesToSet.length
+                        });
                     }
                 },
             },

@@ -3,13 +3,12 @@
 import { useState } from 'react';
 import { useCloudStore } from '@/store/useCloudStore';
 import { Button } from '@/components/ui/Button';
-import { Check, Plus, ShoppingCart, Package, Trash2, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Plus, Trash2 } from 'lucide-react';
 import { Toast } from '@/components/ui/Toast';
 import { formatQuantity } from '@/lib/quantities';
 
 export function GroceryManager() {
-    const { groceryList, inventory, addToGroceryList, toggleGroceryItem, moveGroceryItemToInventory, clearGroceryList, loading } = useCloudStore();
+    const { groceryList, inventory, addToGroceryList, moveGroceryItemToInventory, clearGroceryList } = useCloudStore();
     const [newItem, setNewItem] = useState("");
     const [newItemQty, setNewItemQty] = useState("1");
     const [newItemUnit, setNewItemUnit] = useState("units");
