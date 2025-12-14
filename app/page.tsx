@@ -96,7 +96,8 @@ export default function HomePage() {
 
     if (householdId === currentHousehold?.id) {
       refreshHousehold();
-      router.push('/onboarding');
+      // Use full page navigation to clear cached household status
+      window.location.href = '/onboarding';
     }
   };
 
