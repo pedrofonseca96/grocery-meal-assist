@@ -30,8 +30,9 @@ export default function LoginPage() {
             setError(error.message);
             setLoading(false);
         } else {
-            router.push('/');
-            router.refresh();
+            // Use full page navigation to ensure auth cookies are properly set
+            // and middleware runs with the new session
+            window.location.href = '/';
         }
     };
 

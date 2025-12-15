@@ -103,7 +103,8 @@ export default function OnboardingPage() {
             return;
         }
 
-        router.push('/');
+        // Use full page navigation to ensure cookies and middleware sync
+        window.location.href = '/';
     };
 
     const copyCode = () => {

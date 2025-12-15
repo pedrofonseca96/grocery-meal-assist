@@ -272,7 +272,8 @@ export default function SettingsPage() {
 
     const handleSignOut = async () => {
         await signOut();
-        router.push('/login');
+        // Use full page navigation for proper cookie cleanup
+        window.location.href = '/login';
     };
 
     const confirmDeleteHousehold = async () => {
@@ -297,7 +298,8 @@ export default function SettingsPage() {
 
         if (deleteConfirm.id === currentHousehold?.id) {
             refreshHousehold();
-            router.push('/onboarding');
+            // Use full page navigation to clear cached household status
+            window.location.href = '/onboarding';
         }
 
         setDeleteConfirm(null);
