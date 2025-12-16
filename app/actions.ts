@@ -69,6 +69,7 @@ export async function suggestMealAction(
 
   const prompt = `
     You are a culinary expert assisting a family with meal planning.
+    
     Context:
     - Current Inventory: ${inventoryItems.join(", ") || "Nothing specific"}.
     - Preferred Cuisines: ${cuisines.join(", ")}.
@@ -76,28 +77,45 @@ export async function suggestMealAction(
     - Day of Week: ${dayName}
     ${dietaryNote}
 
-    RULES & PREFERENCES:
-    1. FAMILY BIAS: This family is Portuguese and prefers Portuguese dishes (approx. 70% of the time).
-       - Occasionally suggest Thai, Italian, or other favorites (30%).
+    === CRITICAL RULES ===
     
-    2. INVENTORY: If the current inventory strongly suggests a non-Portuguese dish (e.g., coconut milk + curry paste), ignore the bias and suggest that.
+    1. MAIN DISH REQUIREMENT:
+       - You MUST suggest a REAL, well-known dish that exists as a main course.
+       - The dish MUST be a complete meal appropriate for ${mealType}.
+       - Do NOT invent dishes or combine random ingredients.
+       - Do NOT suggest side dishes, appetizers, or snacks as main meals (except for weekend dinners).
+       - Examples of valid main dishes: Pasta Carbonara, Grilled Salmon, Beef Stew, Chicken Curry.
+       - Examples of INVALID suggestions: "Carrot and Onion Mix", "Rice with Random Vegetables".
+    
+    2. SMART INVENTORY USAGE:
+       - Only use inventory items that make sense as PRIMARY ingredients for the suggested dish.
+       - Do NOT force ingredients that don't belong in the dish.
+       - If inventory only has supporting ingredients (onions, garlic, oil), suggest a dish that uses those naturally.
+       - It's OK to suggest a dish that requires additional ingredients not in inventory.
+    
+    3. FAMILY PREFERENCES:
+       - This family is Portuguese and prefers Portuguese dishes (approx. 70% of the time).
+       - Occasionally suggest Thai, Italian, or other favorites (30%).
+       - If inventory strongly suggests a specific cuisine (e.g., coconut milk + curry paste → Thai), follow that.
 
-    3. WEEKEND DINNERS (Saturday/Sunday Night):
-       - If Suggested Meal is for 'Dinner' on 'Saturday' or 'Sunday':
-       - Suggest SIMPLE, casual meals.
-       - Examples: "Prego no pão" (Steak sandwich), "Bifana", "Toast", "Pizza", or light snacks.
+    4. WEEKEND DINNERS (Saturday/Sunday):
+       - For 'Dinner' on 'Saturday' or 'Sunday': Suggest SIMPLE, casual meals.
+       - Examples: "Prego no pão", "Bifana", "Toast", "Pizza", "Francesinha", light snacks.
        - Do NOT suggest heavy or complex meals for weekend dinners.
 
-    Please suggest ONE dish following these rules.
-    It should valid for a family meal.
-    If possible, use the inventory items.
+    === YOUR TASK ===
     
-    IMPORTANT: Include step-by-step cooking instructions (5-8 simple steps).
+    Think step by step:
+    1. Consider what real dish would be appropriate for ${mealType} on ${dayName}.
+    2. Check if any inventory items are PRIMARY ingredients for that dish.
+    3. Ensure the dish is a recognized, complete main course.
+    4. Provide your reasoning for why you chose this dish.
     
     Output strictly in JSON format:
     {
-      "name": "Dish Name",
-      "description": "Short description",
+      "name": "Dish Name (must be a real, recognized dish)",
+      "description": "Short description of the dish",
+      "reasoning": "1-2 sentences explaining why you suggested this dish based on the context",
       "cuisine": "Cuisine Type",
       "ingredients": [
         { "name": "Ingredient 1", "quantity": "amount" },
