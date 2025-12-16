@@ -29,23 +29,6 @@ const HouseholdContext = createContext<HouseholdContextType>({
 });
 
 const ACTIVE_HOUSEHOLD_KEY = 'active_household_id';
-const SELECTION_TIMESTAMP_KEY = 'household_selection_timestamp';
-const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-
-// Check if the stored selection is still valid (within timeout)
-const isSelectionValid = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    const timestamp = localStorage.getItem(SELECTION_TIMESTAMP_KEY);
-    if (!timestamp) return false;
-    const elapsed = Date.now() - parseInt(timestamp, 10);
-    return elapsed < SESSION_TIMEOUT_MS;
-};
-
-// Clear session data from localStorage
-const clearSessionData = () => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(SELECTION_TIMESTAMP_KEY);
-};
 
 export function HouseholdProvider({ children }: { children: ReactNode }) {
     const { user, loading: authLoading } = useAuth();
@@ -54,7 +37,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     const [isHouseholdSelected, setIsHouseholdSelected] = useState(false);
 
     const fetchHousehold = async (preferredId?: string, markAsSelected: boolean = false) => {
-        // Wait for auth to finish loading before making decisions
         if (authLoading) {
             return;
         }
@@ -63,7 +45,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             setHousehold(null);
             setLoading(false);
             setIsHouseholdSelected(false);
-            clearSessionData();
             return;
         }
 
@@ -79,7 +60,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             setHousehold(null);
             setLoading(false);
             setIsHouseholdSelected(false);
-            clearSessionData();
             return;
         }
 
@@ -98,22 +78,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
         if (householdData) {
             setHousehold(householdData);
             localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdData.id);
-        }
 
-        // Check if we should auto-restore selection from a valid session
-        // or if this is an explicit user action
-        if (markAsSelected) {
-            setIsHouseholdSelected(true);
-            localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
-        } else if (isSelectionValid()) {
-            // Auto-restore: session is still valid from previous selection
-            setIsHouseholdSelected(true);
-            // Refresh the timestamp to extend the session
-            localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
-        } else {
-            // Session expired or never existed
-            setIsHouseholdSelected(false);
-            clearSessionData();
+            // Auto-select if explicit action or if household was previously saved
+            if (markAsSelected || savedId) {
+                setIsHouseholdSelected(true);
+            }
         }
 
         setLoading(false);
@@ -121,22 +90,19 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
     const setActiveHousehold = async (householdId: string) => {
         localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, householdId);
-        localStorage.setItem(SELECTION_TIMESTAMP_KEY, Date.now().toString());
-        await fetchHousehold(householdId, true); // Mark as selected
+        await fetchHousehold(householdId, true);
     };
 
     const clearActiveHousehold = () => {
         setIsHouseholdSelected(false);
-        clearSessionData();
+        localStorage.removeItem(ACTIVE_HOUSEHOLD_KEY);
     };
 
     useEffect(() => {
-        // Only fetch when auth loading is complete
         if (!authLoading) {
-             
             fetchHousehold();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchHousehold is stable
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, authLoading]);
 
     return (
@@ -146,7 +112,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
             isHouseholdSelected,
             refreshHousehold: fetchHousehold,
             setActiveHousehold,
-            clearActiveHousehold
+            clearActiveHousehold,
         }}>
             {children}
         </HouseholdContext.Provider>
@@ -154,6 +120,3 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 }
 
 export const useHousehold = () => useContext(HouseholdContext);
-
-
-
